@@ -264,54 +264,53 @@
 
     <script type="module">
         // --- Firebase Imports ---
+        // Note: These imports must remain for the Canvas environment to work, 
+        // but the initialization below now guards against errors in external environments.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
         
         // --- Firebase Setup ---
-        // Global variables provided by the environment (must be used)
-        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
-        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
-
-        // Initialize Firebase services
-        const app = initializeApp(firebaseConfig);
-        const db = getFirestore(app);
-        const auth = getAuth(app);
         
-        let userId = null; 
-
-        // Donation Tracking Constants
-        const DONATION_DOC_PATH = `/artifacts/${appId}/public/data/donations/total`;
         const moneyRaisedDisplay = document.getElementById('moneyRaisedDisplay');
-        
-        // High Score Tracking Constants
-        // Public document for the best score across ALL users
-        const GLOBAL_BEST_DOC_PATH = `/artifacts/${appId}/public/data/highScores/globalBest`;
-        // Displays
         const personalBestDisplay = document.getElementById('personalBestDisplay');
         const globalBestDisplay = document.getElementById('globalBestDisplay');
 
-        // High Score State
+        // Global variables provided by the environment (must be used)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const rawConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
+        const firebaseConfig = JSON.parse(rawConfig);
+        
+        // Check if Firebase config is valid (i.e., running in Canvas environment)
+        const isFirebaseAvailable = !!(firebaseConfig && firebaseConfig.apiKey); 
+
+        let db, auth;
+        let userId = null; 
+        
+        // Donation Tracking Constants (Only used if Firebase is available)
+        const DONATION_DOC_PATH = `/artifacts/${appId}/public/data/donations/total`;
+        const GLOBAL_BEST_DOC_PATH = `/artifacts/${appId}/public/data/highScores/globalBest`;
+
+        // High Score State (Local for all environments)
         let personalBestTime = 0; // Stored in milliseconds
         let globalBestTime = 0;   // Stored in milliseconds
         let globalBestUserId = '';
 
-        // --- Firebase Logic ---
+        // --- Firebase Logic (Conditional) ---
 
         /**
          * Initializes or updates the real-time donation tracker.
          */
         function initializeDonationTracking() {
+            if (!isFirebaseAvailable) return;
+
             const docRef = doc(db, DONATION_DOC_PATH);
 
-            // Set up real-time listener for the total amount
             onSnapshot(docRef, async (docSnap) => {
                 if (docSnap.exists()) {
-                    // Update UI with existing data
                     const totalRaised = docSnap.data().amount || 0;
                     moneyRaisedDisplay.textContent = `$${totalRaised.toFixed(2)}`;
                 } else {
-                    // If the document doesn't exist, create it with the initial $2 donation.
                     const initialTotal = 2.00; // Your friend's initial $2 donation
                     try {
                         await setDoc(docRef, { amount: initialTotal }, { merge: false });
@@ -329,8 +328,8 @@
          * Initializes and listens for both personal and global high scores.
          */
         function initializeHighScores() {
-            if (!userId) {
-                console.warn("User ID not available for high score tracking.");
+            if (!isFirebaseAvailable || !userId) {
+                console.warn("User ID not available or Firebase skipped for high score tracking.");
                 return;
             }
 
@@ -374,7 +373,7 @@
          * @param {number} newScoreMs The score in milliseconds to check.
          */
         async function updateHighScores(newScoreMs) {
-            if (!userId) return;
+            if (!isFirebaseAvailable || !userId) return;
 
             const newScoreSeconds = newScoreMs / 1000;
 
@@ -407,28 +406,44 @@
         }
         
         /**
-         * Handles user authentication.
+         * Handles user authentication and initializes listeners.
          */
         async function setupAuth() {
-            try {
-                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                    await signInWithCustomToken(auth, __initial_auth_token);
-                } else {
-                    await signInAnonymously(auth);
-                }
-                userId = auth.currentUser?.uid || crypto.randomUUID();
-                initializeDonationTracking(); // Start listening for changes once authenticated
-                initializeHighScores(); // Start listening for high scores
+            if (isFirebaseAvailable) {
+                try {
+                    const appInstance = initializeApp(firebaseConfig);
+                    db = getFirestore(appInstance);
+                    auth = getAuth(appInstance);
 
-            } catch (error) {
-                console.error("Firebase Auth failed:", error);
+                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                        await signInWithCustomToken(auth, __initial_auth_token);
+                    } else {
+                        await signInAnonymously(auth);
+                    }
+                    userId = auth.currentUser?.uid || crypto.randomUUID();
+                    initializeDonationTracking(); // Start listening for changes once authenticated
+                    initializeHighScores(); // Start listening for high scores
+
+                } catch (error) {
+                    console.error("Firebase Auth or Initialization failed:", error);
+                    // Fallback UI in case initialization fails even with config
+                    moneyRaisedDisplay.textContent = `$2.00`; // Updated: Removed (Auth Failed)
+                    globalBestDisplay.textContent = `0.00s`;   // Updated: Display 0.00s
+                    personalBestDisplay.textContent = `0.00s`; // Updated: Display 0.00s
+                }
+            } else {
+                console.warn("Firebase configuration not detected. Running in local debug mode (no persistence).");
+                // Fallback for outside-of-Canvas environment (VS Code/GitHub)
+                moneyRaisedDisplay.textContent = `$2.00`; // Updated: Removed (Local Debug)
+                globalBestDisplay.textContent = `0.00s`;   // Updated: Display 0.00s
+                personalBestDisplay.textContent = `0.00s`; // Updated: Display 0.00s
             }
         }
 
         // Initialize Auth and Database
         setupAuth();
 
-        // --- Game Logic ---
+        // --- Game Logic (Unconditional) ---
         
         // --- Game Constants ---
         const CANVAS_WIDTH = 400;
@@ -495,7 +510,9 @@
          */
         function showGameOver() {
             // Update high scores before showing the game over screen
-            updateHighScores(score);
+            if (isFirebaseAvailable) {
+                updateHighScores(score);
+            }
 
             canvas.classList.add('hidden');
             mobileControls.style.display = 'none'; // Hide controls
