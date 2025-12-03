@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -125,11 +124,11 @@
         }
 
         /* Game Over / Restart Button */
-        .btn-restart { 
+        .btn-restart, .btn-secondary { 
             background: linear-gradient(to bottom, #69a7ff, var(--secondary-FA));
             color: white;
         }
-        .btn-restart:hover {
+        .btn-restart:hover, .btn-secondary:hover {
             background: linear-gradient(to bottom, #79b0ff, #306eff);
             box-shadow: 
                 0 4px 0 0 rgba(0, 0, 0, 0.4),
@@ -146,6 +145,32 @@
                 0 0 10px rgba(64, 128, 255, 0.4);
             border: 1px solid rgba(102, 224, 163, 0.3);
         }
+
+        /* Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.75);
+            backdrop-filter: blur(3px);
+            z-index: 999;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-content {
+            background: var(--dark-FA-accent);
+            border-radius: 1.5rem;
+            padding: 2rem;
+            max-width: 90%;
+            box-shadow: 0 0 30px rgba(64, 128, 255, 0.9), 0 10px 40px rgba(0, 0, 0, 0.8);
+            border: 2px solid var(--secondary-FA);
+            text-align: center;
+        }
+
 
         /* Mobile controls should be hidden by default and only shown when playing */
         #mobile-controls {
@@ -170,32 +195,23 @@
 
     <div id="game-container" class="relative w-full">
         
-        <!-- MONEY RAISED BAR (Updated with FA Bar Style) -->
-        <div class="w-full max-w-lg mx-auto p-3 mb-6 rounded-xl shadow-xl fa-bar flex justify-between items-center">
-            <h2 class="text-lg font-semibold text-white">Total Raised:</h2>
-            <p id="moneyRaisedDisplay" class="text-3xl font-black mission-glow" style="color: #ffe873; text-shadow: 0 0 10px #ffe873;">$0.00</p>
+        <!-- TOP CONTROLS AND SCORE BARS -->
+        <div class="w-full max-w-lg mx-auto p-3 mb-6 flex justify-between items-center space-x-4">
+            <!-- MONEY RAISED BAR (Updated with FA Bar Style) -->
+            <div class="p-3 rounded-xl shadow-xl fa-bar flex-1 text-center">
+                <h2 class="text-sm font-semibold text-gray-300">Total Raised:</h2>
+                <p id="moneyRaisedDisplay" class="text-2xl sm:text-3xl font-black mission-glow" style="color: #ffe873; text-shadow: 0 0 10px #ffe873;">$0.00</p>
+            </div>
+            
+            <!-- NEW HIGH SCORE BUTTON -->
+            <button id="highScoreButton" class="mission-btn-base btn-secondary py-3 px-6 text-sm sm:text-base whitespace-nowrap">
+                🏆 View High Score
+            </button>
         </div>
 
-        <!-- High Score Display (Updated with FA Bar Style) -->
-        <div class="w-full max-w-lg mx-auto p-3 rounded-xl shadow-md mb-6 fa-bar">
-            <div class="flex justify-between items-center text-sm font-semibold text-gray-300">
-                <span class="flex items-center">
-                    <span class="mr-2 text-yellow-300">★</span> 
-                    Personal Best:
-                </span>
-                <span id="personalBestDisplay" class="text-lg" style="color: var(--primary-FA);">0.00s</span>
-            </div>
-            <div class="flex justify-between items-center text-sm font-semibold text-gray-300 mt-1">
-                <span class="flex items-center">
-                    <span class="mr-2 text-red-400">🏆</span> 
-                    Global Best:
-                </span>
-                <span id="globalBestDisplay" class="text-lg" style="color: var(--secondary-FA);">0.00s</span>
-            </div>
-        </div>
 
         <!-- Main Title Header -->
-        <h1 class="text-4xl sm:text-5xl font-extrabold mt-8 mb-4 tracking-tighter mission-glow">
+        <h1 class="text-4xl sm:text-5xl font-extrabold mt-4 mb-4 tracking-tighter mission-glow">
             Meals on a Mission
         </h1>
         <p class="text-lg text-gray-300 mb-6">Avoid the falling blocks!</p>
@@ -257,6 +273,21 @@
         </div>
     </div>
 
+    <!-- MODAL for High Score Display (Hidden by default) -->
+    <div id="scoreModal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="text-3xl font-extrabold mb-4 mission-glow" style="color: var(--primary-FA);">
+                Your High Score
+            </h3>
+            <p id="modalScoreDisplay" class="text-6xl font-black mb-8 mission-glow" style="color: #ffe873; text-shadow: 0 0 15px #ffe873;">
+                0.00s
+            </p>
+            <button id="closeModalButton" class="mission-btn-base btn-secondary py-2 px-6">
+                Close
+            </button>
+        </div>
+    </div>
+
     <!-- Nonprofit Banner/Link (Fixed to Bottom) -->
     <div class="fixed bottom-0 left-0 w-full bg-black bg-opacity-70 text-white shadow-lg z-50 p-2 sm:p-3 flex justify-center border-t" style="border-top-color: var(--primary-FA);">
         <a id="donationLink" href="https://app.etapestry.com/onlineforms/StVincentdePaul_Indy/give.html" target="_blank" class="text-center font-semibold text-sm sm:text-base hover:opacity-80 transition duration-150" style="color: var(--primary-FA);">
@@ -273,9 +304,7 @@
         // --- Firebase Setup ---
         
         const moneyRaisedDisplay = document.getElementById('moneyRaisedDisplay');
-        const personalBestDisplay = document.getElementById('personalBestDisplay');
-        const globalBestDisplay = document.getElementById('globalBestDisplay');
-
+        
         // Global variables provided by the environment (must be used)
         const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
         const rawConfig = typeof __firebase_config !== 'undefined' ? __firebase_config : '{}';
@@ -287,14 +316,11 @@
         let db, auth;
         let userId = null; 
         
-        // Donation Tracking Constants (Only used if Firebase is available)
+        // Donation Tracking Constant (Kept for the mission aspect)
         const DONATION_DOC_PATH = `/artifacts/${appId}/public/data/donations/total`;
-        const GLOBAL_BEST_DOC_PATH = `/artifacts/${appId}/public/data/highScores/globalBest`;
 
-        // High Score State (Local for all environments)
-        let personalBestTime = 0; // Stored in milliseconds
-        let globalBestTime = 0;   // Stored in milliseconds
-        let globalBestUserId = '';
+        // High Score State (Only tracking the user's personal best)
+        let highScoreTime = 0; // Stored in milliseconds (Used locally and synced to Firebase)
 
         // --- Firebase Logic (Conditional) ---
 
@@ -325,95 +351,63 @@
         }
         
         /**
-         * Initializes and listens for both personal and global high scores.
+         * Initializes and listens for the user's high score.
          */
-        function initializeHighScores() {
+        function initializeHighScore() {
             if (!isFirebaseAvailable || !userId) {
                 console.warn("User ID not available or Firebase skipped for high score tracking.");
+                // If running locally, attempt to load from localStorage (non-persistent for Canvas)
+                const localScore = localStorage.getItem('localHighScore');
+                if (localScore) {
+                    highScoreTime = parseInt(localScore, 10);
+                }
                 return;
             }
 
-            // 1. Personal Best Listener (Private Data)
-            const PERSONAL_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
-            const personalDocRef = doc(db, PERSONAL_HIGH_SCORE_DOC);
+            // High Score Listener (Private Data)
+            const USER_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
+            const userDocRef = doc(db, USER_HIGH_SCORE_DOC);
 
-            onSnapshot(personalDocRef, (docSnap) => {
+            onSnapshot(userDocRef, (docSnap) => {
                 if (docSnap.exists()) {
-                    personalBestTime = docSnap.data().time || 0;
+                    highScoreTime = docSnap.data().time || 0;
                 } else {
-                    personalBestTime = 0;
+                    highScoreTime = 0;
                 }
-                // Always update display based on the database value
-                personalBestDisplay.textContent = `${(personalBestTime / 1000).toFixed(2)}s`;
+                console.log(`High score loaded: ${(highScoreTime / 1000).toFixed(2)}s`);
             }, (error) => {
-                console.error("Error listening to personal high score:", error);
-            });
-
-            // 2. Global Best Listener (Public Data)
-            const globalDocRef = doc(db, GLOBAL_BEST_DOC_PATH);
-            onSnapshot(globalDocRef, (docSnap) => {
-                if (docSnap.exists()) {
-                    globalBestTime = docSnap.data().time || 0;
-                    globalBestUserId = docSnap.data().userId || 'N/A';
-                } else {
-                    globalBestTime = 0;
-                    globalBestUserId = 'N/A';
-                }
-                // Always update display based on the database value
-                globalBestDisplay.textContent = `${(globalBestTime / 1000).toFixed(2)}s`;
-                if (globalBestUserId !== 'N/A') {
-                    // Show a shortened version of the user ID who holds the record
-                    globalBestDisplay.title = `Held by user: ${globalBestUserId.substring(0, 5)}...`;
-                }
-            }, (error) => {
-                console.error("Error listening to global best score:", error);
+                console.error("Error listening to user high score:", error);
             });
         }
 
         /**
-         * Updates high scores (personal and global) if the new score is better.
+         * Updates high score if the new score is better.
          * @param {number} newScoreMs The score in milliseconds to check.
          */
-        async function updateHighScores(newScoreMs) {
+        async function updateHighScore(newScoreMs) {
+            if (newScoreMs <= highScoreTime) return;
+            
+            highScoreTime = newScoreMs;
             const newScoreSeconds = newScoreMs / 1000;
 
             // Handle Local/Non-Firebase environment
             if (!isFirebaseAvailable) {
-                if (newScoreMs > personalBestTime) {
-                    personalBestTime = newScoreMs;
-                    // Update display immediately for non-persistent local best
-                    personalBestDisplay.textContent = `${newScoreSeconds.toFixed(2)}s (Local)`;
-                }
-                // No global best tracking locally
+                localStorage.setItem('localHighScore', newScoreMs.toString());
+                console.log(`New Local High Score: ${newScoreSeconds.toFixed(2)}s`);
                 return;
             }
             
             // --- FIREBASE LOGIC STARTS HERE ---
             if (!userId) return; // Guard for Firebase logic
 
-            // 1. Check and Update Personal Best
-            if (newScoreMs > personalBestTime) {
-                const PERSONAL_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
-                const personalDocRef = doc(db, PERSONAL_HIGH_SCORE_DOC);
-                try {
-                    // This setDoc will trigger the onSnapshot listener, updating the UI
-                    await setDoc(personalDocRef, { time: newScoreMs }, { merge: false });
-                    console.log(`New Personal Best: ${newScoreSeconds.toFixed(2)}s`);
-                } catch (e) {
-                    console.error("Error setting personal high score:", e);
-                }
-            }
-
-            // 2. Check and Update Global Best
-            if (newScoreMs > globalBestTime) {
-                const globalDocRef = doc(db, GLOBAL_BEST_DOC_PATH);
-                try {
-                    // This setDoc will trigger the onSnapshot listener, updating the UI
-                    await setDoc(globalDocRef, { time: newScoreMs, userId: userId }, { merge: false });
-                    console.log(`New GLOBAL BEST: ${newScoreSeconds.toFixed(2)}s`);
-                } catch (e) {
-                    console.error("Error setting global best score:", e);
-                }
+            const USER_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
+            const userDocRef = doc(db, USER_HIGH_SCORE_DOC);
+            try {
+                // This setDoc will trigger the onSnapshot listener, updating the local variable
+                await setDoc(userDocRef, { time: newScoreMs }, { merge: false });
+                console.log(`New High Score saved to Firebase: ${newScoreSeconds.toFixed(2)}s`);
+            } catch (e) {
+                console.error("Error setting high score:", e);
             }
         }
         
@@ -434,26 +428,47 @@
                     }
                     userId = auth.currentUser?.uid || crypto.randomUUID();
                     initializeDonationTracking(); // Start listening for changes once authenticated
-                    initializeHighScores(); // Start listening for high scores
+                    initializeHighScore(); // Start listening for high score
 
                 } catch (error) {
                     console.error("Firebase Auth or Initialization failed:", error);
                     // Fallback UI in case initialization fails even with config
                     moneyRaisedDisplay.textContent = `$2.00`;
-                    globalBestDisplay.textContent = `0.00s`;
-                    personalBestDisplay.textContent = `0.00s`;
                 }
             } else {
                 console.warn("Firebase configuration not detected. Running in local debug mode (no persistence).");
-                // Fallback for outside-of-Canvas environment (VS Code/GitHub)
                 moneyRaisedDisplay.textContent = `$2.00`;
-                globalBestDisplay.textContent = `0.00s`;
-                personalBestDisplay.textContent = `0.00s`;
+                initializeHighScore(); // Load local storage score
             }
         }
 
         // Initialize Auth and Database
         setupAuth();
+
+        // --- Modal Logic ---
+        
+        const highScoreButton = document.getElementById('highScoreButton');
+        const scoreModal = document.getElementById('scoreModal');
+        const modalScoreDisplay = document.getElementById('modalScoreDisplay');
+        const closeModalButton = document.getElementById('closeModalButton');
+        
+        function showHighScoreModal() {
+            modalScoreDisplay.textContent = `${(highScoreTime / 1000).toFixed(2)}s`;
+            scoreModal.classList.remove('hidden');
+        }
+        
+        function hideHighScoreModal() {
+            scoreModal.classList.add('hidden');
+        }
+        
+        highScoreButton.addEventListener('click', showHighScoreModal);
+        closeModalButton.addEventListener('click', hideHighScoreModal);
+        scoreModal.addEventListener('click', (e) => {
+            // Close modal if user clicks on the overlay, not the content
+            if (e.target === scoreModal) {
+                hideHighScoreModal();
+            }
+        });
 
         // --- Game Logic (Unconditional) ---
         
@@ -523,7 +538,7 @@
          */
         function showGameOver() {
             // Update high scores before showing the game over screen
-            updateHighScores(score);
+            updateHighScore(score);
 
             canvas.classList.add('hidden');
             mobileControls.style.display = 'none'; // Hide controls
@@ -865,3 +880,5 @@
     </script>
 </body>
 </html>
+
+
