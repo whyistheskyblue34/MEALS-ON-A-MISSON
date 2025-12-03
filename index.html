@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -242,7 +243,8 @@
         </div>
         
         <!-- Mobile Controls (Displayed below the game wrapper) -->
-        <div id="mobile-controls" class="w-full max-w-sm sm:max-w-md mt-4 flex justify-between px-2 sm:px-0">
+        <!-- Increased margin-top to mt-8 for better separation -->
+        <div id="mobile-controls" class="w-full max-w-sm sm:max-w-md mt-8 flex justify-between px-2 sm:px-0">
             <button id="moveLeft" class="mission-btn-base btn-move p-4 w-1/4">
                 LEFT
             </button>
@@ -264,8 +266,6 @@
 
     <script type="module">
         // --- Firebase Imports ---
-        // Note: These imports must remain for the Canvas environment to work, 
-        // but the initialization below now guards against errors in external environments.
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
         import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
         import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
@@ -343,6 +343,7 @@
                 } else {
                     personalBestTime = 0;
                 }
+                // Always update display based on the database value
                 personalBestDisplay.textContent = `${(personalBestTime / 1000).toFixed(2)}s`;
             }, (error) => {
                 console.error("Error listening to personal high score:", error);
@@ -358,6 +359,7 @@
                     globalBestTime = 0;
                     globalBestUserId = 'N/A';
                 }
+                // Always update display based on the database value
                 globalBestDisplay.textContent = `${(globalBestTime / 1000).toFixed(2)}s`;
                 if (globalBestUserId !== 'N/A') {
                     // Show a shortened version of the user ID who holds the record
@@ -373,18 +375,30 @@
          * @param {number} newScoreMs The score in milliseconds to check.
          */
         async function updateHighScores(newScoreMs) {
-            if (!isFirebaseAvailable || !userId) return;
-
             const newScoreSeconds = newScoreMs / 1000;
+
+            // Handle Local/Non-Firebase environment
+            if (!isFirebaseAvailable) {
+                if (newScoreMs > personalBestTime) {
+                    personalBestTime = newScoreMs;
+                    // Update display immediately for non-persistent local best
+                    personalBestDisplay.textContent = `${newScoreSeconds.toFixed(2)}s (Local)`;
+                }
+                // No global best tracking locally
+                return;
+            }
+            
+            // --- FIREBASE LOGIC STARTS HERE ---
+            if (!userId) return; // Guard for Firebase logic
 
             // 1. Check and Update Personal Best
             if (newScoreMs > personalBestTime) {
                 const PERSONAL_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
                 const personalDocRef = doc(db, PERSONAL_HIGH_SCORE_DOC);
                 try {
+                    // This setDoc will trigger the onSnapshot listener, updating the UI
                     await setDoc(personalDocRef, { time: newScoreMs }, { merge: false });
                     console.log(`New Personal Best: ${newScoreSeconds.toFixed(2)}s`);
-                    personalBestTime = newScoreMs; // Update local state immediately
                 } catch (e) {
                     console.error("Error setting personal high score:", e);
                 }
@@ -394,11 +408,9 @@
             if (newScoreMs > globalBestTime) {
                 const globalDocRef = doc(db, GLOBAL_BEST_DOC_PATH);
                 try {
-                    // Use setDoc to overwrite if the new score is better
+                    // This setDoc will trigger the onSnapshot listener, updating the UI
                     await setDoc(globalDocRef, { time: newScoreMs, userId: userId }, { merge: false });
                     console.log(`New GLOBAL BEST: ${newScoreSeconds.toFixed(2)}s`);
-                    globalBestTime = newScoreMs; // Update local state immediately
-                    globalBestUserId = userId;
                 } catch (e) {
                     console.error("Error setting global best score:", e);
                 }
@@ -427,16 +439,16 @@
                 } catch (error) {
                     console.error("Firebase Auth or Initialization failed:", error);
                     // Fallback UI in case initialization fails even with config
-                    moneyRaisedDisplay.textContent = `$2.00`; // Updated: Removed (Auth Failed)
-                    globalBestDisplay.textContent = `0.00s`;   // Updated: Display 0.00s
-                    personalBestDisplay.textContent = `0.00s`; // Updated: Display 0.00s
+                    moneyRaisedDisplay.textContent = `$2.00`;
+                    globalBestDisplay.textContent = `0.00s`;
+                    personalBestDisplay.textContent = `0.00s`;
                 }
             } else {
                 console.warn("Firebase configuration not detected. Running in local debug mode (no persistence).");
                 // Fallback for outside-of-Canvas environment (VS Code/GitHub)
-                moneyRaisedDisplay.textContent = `$2.00`; // Updated: Removed (Local Debug)
-                globalBestDisplay.textContent = `0.00s`;   // Updated: Display 0.00s
-                personalBestDisplay.textContent = `0.00s`; // Updated: Display 0.00s
+                moneyRaisedDisplay.textContent = `$2.00`;
+                globalBestDisplay.textContent = `0.00s`;
+                personalBestDisplay.textContent = `0.00s`;
             }
         }
 
@@ -453,6 +465,7 @@
         const OBSTACLE_SIZE = 30; 
         const INITIAL_OBSTACLE_SPEED = 2;
         const SPAWN_INTERVAL = 1000; // ms
+        const MIN_SPAWN_INTERVAL = 300; // Minimum gap between spawns to ensure a path
 
         // Ghosting/Invincibility Constants
         const GHOST_DURATION_MS = 1200; 
@@ -510,9 +523,7 @@
          */
         function showGameOver() {
             // Update high scores before showing the game over screen
-            if (isFirebaseAvailable) {
-                updateHighScores(score);
-            }
+            updateHighScores(score);
 
             canvas.classList.add('hidden');
             mobileControls.style.display = 'none'; // Hide controls
@@ -785,8 +796,11 @@
             // Update Score (in milliseconds)
             score += deltaTime;
 
-            // Spawning (Speed up spawn rate over time)
-            if (currentTime - lastSpawnTime > SPAWN_INTERVAL - (score / 100)) { 
+            // Spawning (Speed up spawn rate over time, but ensure a minimum gap)
+            let adjustedInterval = SPAWN_INTERVAL - (score / 100); 
+            
+            // Check against the minimum interval to prevent screen flooding
+            if (currentTime - lastSpawnTime > Math.max(MIN_SPAWN_INTERVAL, adjustedInterval)) { 
                  spawnObstacle();
                  lastSpawnTime = currentTime;
             }
