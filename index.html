@@ -1,0 +1,836 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Meals on a Mission Mini Game</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        /* --- DARK FRUTIGER AERO STYLES --- */
+        
+        /* Define Frutiger Aero Colors (Dark Base, Glossy Accents) */
+        :root {
+            --primary-FA: #66e0a3;        /* Hopeful Glossy Green/Aqua */
+            --secondary-FA: #4080ff;      /* Hopeful Glossy Blue */
+            --dark-FA-bg: #0d1a2f;        /* Deep Dark Blue */
+            --dark-FA-accent: #1e3353;    /* Slightly lighter dark background */
+            --glass-FA-overlay: rgba(50, 70, 90, 0.4); /* Translucent dark glass */
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            /* Deep, dark blue gradient for FA base */
+            background: linear-gradient(135deg, var(--dark-FA-bg) 0%, #1e3353 100%); 
+            min-height: 100vh;
+            color: white; 
+        }
+
+        /* FA-style Glossy Glow Effect */
+        .mission-glow {
+            text-shadow: 0 0 8px var(--primary-FA), 0 0 15px var(--secondary-FA), 0 0 30px rgba(255, 255, 255, 0.1);
+            color: white;
+        }
+        
+        /* Container Styling */
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            /* Ensure container occupies screen height but allows for scroll if content overflows */
+            min-height: calc(100vh - 4rem); 
+            padding-bottom: 4rem;
+        }
+        
+        /* Glassy/Skeuomorphic Wrapper */
+        #screen-wrapper {
+            background: var(--glass-FA-overlay); /* Translucent dark glass */
+            backdrop-filter: blur(5px); /* Apply the blur for glass effect */
+            border-radius: 2rem; /* More rounded */
+            padding: 2rem;
+            /* Complex, glossy shadow effect */
+            box-shadow: 
+                /* Outer shadow (glow) */
+                0 0 20px rgba(64, 128, 255, 0.6), /* Blue glow */
+                0 10px 30px rgba(0, 0, 0, 0.5),   /* Base shadow */
+                /* Inner edge highlight for skeuomorphism */
+                inset 0 1px 0 rgba(255, 255, 255, 0.2); 
+            border: 2px solid rgba(102, 224, 163, 0.4); /* Primary FA border */
+        }
+
+        /* Canvas Styling - The main viewport */
+        canvas {
+            border: 2px solid var(--secondary-FA); /* Blue border */
+            background-color: #000000; /* True black background for high contrast */
+            /* Stronger FA glow for depth */
+            box-shadow: 
+                0 0 15px var(--primary-FA), 
+                0 0 40px var(--secondary-FA); 
+            max-width: 95%; /* Responsive width on smaller screens */
+            max-height: 70vh;
+            border-radius: 1rem;
+        }
+        
+        /* Button Base Style - Skeuomorphic/Glossy Look */
+        .mission-btn-base {
+            font-weight: bold;
+            padding: 1rem;
+            border-radius: 1.5rem; /* Pill shape */
+            transition: all 0.2s ease-in-out;
+            text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+            /* Glossy/Bevel effect */
+            box-shadow: 
+                0 4px 0 0 rgba(0, 0, 0, 0.4), /* Bottom shadow for depth */
+                inset 0 1px 0 rgba(255, 255, 255, 0.3), /* Top highlight */
+                inset 0 -1px 0 rgba(0, 0, 0, 0.1); 
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        /* Button Colors */
+        .btn-start {
+            background: linear-gradient(to bottom, #7af2bc, var(--primary-FA)); /* Green Gradient */
+            color: var(--dark-FA-bg);
+        }
+        .btn-start:hover {
+            background: linear-gradient(to bottom, #86f4c5, #56d195);
+            box-shadow: 
+                0 4px 0 0 rgba(0, 0, 0, 0.4), 
+                0 0 15px rgba(102, 224, 163, 0.8); /* Stronger glow */
+            transform: translateY(-2px);
+        }
+
+        .btn-move {
+            background: linear-gradient(to bottom, #69a7ff, var(--secondary-FA)); /* Blue Gradient */
+            color: white;
+        }
+        .btn-move:hover {
+            background: linear-gradient(to bottom, #79b0ff, #306eff);
+            box-shadow: 
+                0 4px 0 0 rgba(0, 0, 0, 0.4),
+                0 0 15px rgba(64, 128, 255, 0.8);
+            transform: translateY(-2px);
+        }
+
+        .btn-ghost {
+            background: linear-gradient(to bottom, #ffe873, #ffc700); /* Yellow/Gold Gradient */
+            color: var(--dark-FA-bg);
+        }
+        .btn-ghost:hover { 
+            background: linear-gradient(to bottom, #fff099, #ffdc33);
+            box-shadow: 
+                0 4px 0 0 rgba(0, 0, 0, 0.4),
+                0 0 15px rgba(255, 215, 0, 0.8);
+            transform: translateY(-2px);
+        }
+
+        /* Game Over / Restart Button */
+        .btn-restart { 
+            background: linear-gradient(to bottom, #69a7ff, var(--secondary-FA));
+            color: white;
+        }
+        .btn-restart:hover {
+            background: linear-gradient(to bottom, #79b0ff, #306eff);
+            box-shadow: 
+                0 4px 0 0 rgba(0, 0, 0, 0.4),
+                0 0 15px rgba(64, 128, 255, 0.8);
+            transform: translateY(-2px);
+        }
+
+        /* High Score/Money Bar Styles (Glassy) */
+        .fa-bar {
+            background: var(--glass-FA-overlay);
+            backdrop-filter: blur(4px);
+            box-shadow: 
+                inset 0 1px 0 rgba(255, 255, 255, 0.1),
+                0 0 10px rgba(64, 128, 255, 0.4);
+            border: 1px solid rgba(102, 224, 163, 0.3);
+        }
+
+        /* Mobile controls should be hidden by default and only shown when playing */
+        #mobile-controls {
+            display: none;
+        }
+
+        /* Desktop/Tablet Layout: Fix canvas size and ensure central wrapper looks good */
+        @media (min-width: 640px) {
+            canvas {
+                width: 400px;
+                height: 600px;
+            }
+            #screen-wrapper {
+                 /* Override responsive max-width for desktop view to match canvas size when game is active */
+                max-width: 400px; 
+            }
+        }
+        /* --- END DARK FRUTIGER AERO STYLES --- */
+    </style>
+</head>
+<body class="selection:bg-green-300 selection:text-gray-900">
+
+    <div id="game-container" class="relative w-full">
+        
+        <!-- MONEY RAISED BAR (Updated with FA Bar Style) -->
+        <div class="w-full max-w-lg mx-auto p-3 mb-6 rounded-xl shadow-xl fa-bar flex justify-between items-center">
+            <h2 class="text-lg font-semibold text-white">Total Raised:</h2>
+            <p id="moneyRaisedDisplay" class="text-3xl font-black mission-glow" style="color: #ffe873; text-shadow: 0 0 10px #ffe873;">$0.00</p>
+        </div>
+
+        <!-- High Score Display (Updated with FA Bar Style) -->
+        <div class="w-full max-w-lg mx-auto p-3 rounded-xl shadow-md mb-6 fa-bar">
+            <div class="flex justify-between items-center text-sm font-semibold text-gray-300">
+                <span class="flex items-center">
+                    <span class="mr-2 text-yellow-300">★</span> 
+                    Personal Best:
+                </span>
+                <span id="personalBestDisplay" class="text-lg" style="color: var(--primary-FA);">0.00s</span>
+            </div>
+            <div class="flex justify-between items-center text-sm font-semibold text-gray-300 mt-1">
+                <span class="flex items-center">
+                    <span class="mr-2 text-red-400">🏆</span> 
+                    Global Best:
+                </span>
+                <span id="globalBestDisplay" class="text-lg" style="color: var(--secondary-FA);">0.00s</span>
+            </div>
+        </div>
+
+        <!-- Main Title Header -->
+        <h1 class="text-4xl sm:text-5xl font-extrabold mt-8 mb-4 tracking-tighter mission-glow">
+            Meals on a Mission
+        </h1>
+        <p class="text-lg text-gray-300 mb-6">Avoid the falling blocks!</p>
+
+        <!-- Game Screens Wrapper -->
+        <!-- Note: max-w-md ensures the game content is focused and centered on large screens. -->
+        <div id="screen-wrapper" class="w-full max-w-sm sm:max-w-md relative">
+
+            <!-- Game Canvas -->
+            <canvas id="gameCanvas" width="400" height="600" class="hidden"></canvas>
+            
+            <!-- Start Screen -->
+            <div id="start-screen" class="flex flex-col items-center justify-center text-center">
+                
+                <!-- MISSION STATEMENT ADDED HERE -->
+                <div class="mb-8 p-4 rounded-xl border border-dashed border-primary-FA bg-dark-FA-accent/30">
+                    <p class="text-sm italic font-medium text-gray-200">
+                        This mini-game was created with the hope of raising awareness and funds 
+                        for the **St. Vincent de Paul Pantry** to help their mission of feeding 
+                        local communities. Every second you survive is a win for the mission!
+                    </p>
+                </div>
+                <!-- END MISSION STATEMENT -->
+
+                <h2 class="text-3xl font-bold text-white mb-4 mission-glow">Meals on a Mission Mini Game</h2>
+                <p class="text-gray-300 mb-2 font-bold">Feature: GHOST MODE</p>
+                <p class="text-gray-400 mb-8">
+                    Use **Left/Right** (or on-screen buttons) to move. Press **Spacebar** (or GHOST button) to become temporarily invisible and pass through blocks!
+                </p>
+                <button id="startButton" class="mission-btn-base btn-start py-3 px-8">
+                    Start Game
+                </button>
+            </div>
+
+            <!-- Game Over Screen (Hidden initially) -->
+            <div id="gameover-screen" class="hidden flex-col items-center justify-center text-center">
+                <h2 class="text-4xl font-extrabold text-red-400 mb-4 mission-glow" style="text-shadow: 0 0 10px #ef4444;">Game Over!</h2>
+                <p class="text-xl text-gray-300 mb-2">Your Time Survived:</p>
+                <p id="finalScore" class="text-5xl font-black mb-8 mission-glow" style="color: var(--primary-FA); text-shadow: 0 0 15px var(--primary-FA);">0s</p>
+                <button id="restartButton" class="mission-btn-base btn-restart py-3 px-8">
+                    Play Again
+                </button>
+            </div>
+
+        </div>
+        
+        <!-- Mobile Controls (Displayed below the game wrapper) -->
+        <div id="mobile-controls" class="w-full max-w-sm sm:max-w-md mt-4 flex justify-between px-2 sm:px-0">
+            <button id="moveLeft" class="mission-btn-base btn-move p-4 w-1/4">
+                LEFT
+            </button>
+            <button id="dashButton" class="mission-btn-base btn-ghost p-4 w-2/5 mx-2">
+                GHOST
+            </button>
+            <button id="moveRight" class="mission-btn-base btn-move p-4 w-1/4">
+                RIGHT
+            </button>
+        </div>
+    </div>
+
+    <!-- Nonprofit Banner/Link (Fixed to Bottom) -->
+    <div class="fixed bottom-0 left-0 w-full bg-black bg-opacity-70 text-white shadow-lg z-50 p-2 sm:p-3 flex justify-center border-t" style="border-top-color: var(--primary-FA);">
+        <a id="donationLink" href="https://app.etapestry.com/onlineforms/StVincentdePaul_Indy/give.html" target="_blank" class="text-center font-semibold text-sm sm:text-base hover:opacity-80 transition duration-150" style="color: var(--primary-FA);">
+            Support St. Vincent de Paul Pantry &rarr; Click to Donate Now
+        </a>
+    </div>
+
+    <script type="module">
+        // --- Firebase Imports ---
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+        
+        // --- Firebase Setup ---
+        // Global variables provided by the environment (must be used)
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = JSON.parse(typeof __firebase_config !== 'undefined' ? __firebase_config : '{}');
+
+        // Initialize Firebase services
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const auth = getAuth(app);
+        
+        let userId = null; 
+
+        // Donation Tracking Constants
+        const DONATION_DOC_PATH = `/artifacts/${appId}/public/data/donations/total`;
+        const moneyRaisedDisplay = document.getElementById('moneyRaisedDisplay');
+        
+        // High Score Tracking Constants
+        // Public document for the best score across ALL users
+        const GLOBAL_BEST_DOC_PATH = `/artifacts/${appId}/public/data/highScores/globalBest`;
+        // Displays
+        const personalBestDisplay = document.getElementById('personalBestDisplay');
+        const globalBestDisplay = document.getElementById('globalBestDisplay');
+
+        // High Score State
+        let personalBestTime = 0; // Stored in milliseconds
+        let globalBestTime = 0;   // Stored in milliseconds
+        let globalBestUserId = '';
+
+        // --- Firebase Logic ---
+
+        /**
+         * Initializes or updates the real-time donation tracker.
+         */
+        function initializeDonationTracking() {
+            const docRef = doc(db, DONATION_DOC_PATH);
+
+            // Set up real-time listener for the total amount
+            onSnapshot(docRef, async (docSnap) => {
+                if (docSnap.exists()) {
+                    // Update UI with existing data
+                    const totalRaised = docSnap.data().amount || 0;
+                    moneyRaisedDisplay.textContent = `$${totalRaised.toFixed(2)}`;
+                } else {
+                    // If the document doesn't exist, create it with the initial $2 donation.
+                    const initialTotal = 2.00; // Your friend's initial $2 donation
+                    try {
+                        await setDoc(docRef, { amount: initialTotal }, { merge: false });
+                        moneyRaisedDisplay.textContent = `$${initialTotal.toFixed(2)}`;
+                    } catch (e) {
+                         console.error("Error setting initial donation doc:", e);
+                    }
+                }
+            }, (error) => {
+                console.error("Error listening to donation total:", error);
+            });
+        }
+        
+        /**
+         * Initializes and listens for both personal and global high scores.
+         */
+        function initializeHighScores() {
+            if (!userId) {
+                console.warn("User ID not available for high score tracking.");
+                return;
+            }
+
+            // 1. Personal Best Listener (Private Data)
+            const PERSONAL_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
+            const personalDocRef = doc(db, PERSONAL_HIGH_SCORE_DOC);
+
+            onSnapshot(personalDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    personalBestTime = docSnap.data().time || 0;
+                } else {
+                    personalBestTime = 0;
+                }
+                personalBestDisplay.textContent = `${(personalBestTime / 1000).toFixed(2)}s`;
+            }, (error) => {
+                console.error("Error listening to personal high score:", error);
+            });
+
+            // 2. Global Best Listener (Public Data)
+            const globalDocRef = doc(db, GLOBAL_BEST_DOC_PATH);
+            onSnapshot(globalDocRef, (docSnap) => {
+                if (docSnap.exists()) {
+                    globalBestTime = docSnap.data().time || 0;
+                    globalBestUserId = docSnap.data().userId || 'N/A';
+                } else {
+                    globalBestTime = 0;
+                    globalBestUserId = 'N/A';
+                }
+                globalBestDisplay.textContent = `${(globalBestTime / 1000).toFixed(2)}s`;
+                if (globalBestUserId !== 'N/A') {
+                    // Show a shortened version of the user ID who holds the record
+                    globalBestDisplay.title = `Held by user: ${globalBestUserId.substring(0, 5)}...`;
+                }
+            }, (error) => {
+                console.error("Error listening to global best score:", error);
+            });
+        }
+
+        /**
+         * Updates high scores (personal and global) if the new score is better.
+         * @param {number} newScoreMs The score in milliseconds to check.
+         */
+        async function updateHighScores(newScoreMs) {
+            if (!userId) return;
+
+            const newScoreSeconds = newScoreMs / 1000;
+
+            // 1. Check and Update Personal Best
+            if (newScoreMs > personalBestTime) {
+                const PERSONAL_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
+                const personalDocRef = doc(db, PERSONAL_HIGH_SCORE_DOC);
+                try {
+                    await setDoc(personalDocRef, { time: newScoreMs }, { merge: false });
+                    console.log(`New Personal Best: ${newScoreSeconds.toFixed(2)}s`);
+                    personalBestTime = newScoreMs; // Update local state immediately
+                } catch (e) {
+                    console.error("Error setting personal high score:", e);
+                }
+            }
+
+            // 2. Check and Update Global Best
+            if (newScoreMs > globalBestTime) {
+                const globalDocRef = doc(db, GLOBAL_BEST_DOC_PATH);
+                try {
+                    // Use setDoc to overwrite if the new score is better
+                    await setDoc(globalDocRef, { time: newScoreMs, userId: userId }, { merge: false });
+                    console.log(`New GLOBAL BEST: ${newScoreSeconds.toFixed(2)}s`);
+                    globalBestTime = newScoreMs; // Update local state immediately
+                    globalBestUserId = userId;
+                } catch (e) {
+                    console.error("Error setting global best score:", e);
+                }
+            }
+        }
+        
+        /**
+         * Handles user authentication.
+         */
+        async function setupAuth() {
+            try {
+                if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
+                    await signInWithCustomToken(auth, __initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+                userId = auth.currentUser?.uid || crypto.randomUUID();
+                initializeDonationTracking(); // Start listening for changes once authenticated
+                initializeHighScores(); // Start listening for high scores
+
+            } catch (error) {
+                console.error("Firebase Auth failed:", error);
+            }
+        }
+
+        // Initialize Auth and Database
+        setupAuth();
+
+        // --- Game Logic ---
+        
+        // --- Game Constants ---
+        const CANVAS_WIDTH = 400;
+        const CANVAS_HEIGHT = 600;
+        const PLAYER_SIZE = 35; 
+        const PLAYER_SPEED = 7;
+        const OBSTACLE_SIZE = 30; 
+        const INITIAL_OBSTACLE_SPEED = 2;
+        const SPAWN_INTERVAL = 1000; // ms
+
+        // Ghosting/Invincibility Constants
+        const GHOST_DURATION_MS = 1200; 
+        const GHOST_COOLDOWN_MS = 4000; 
+
+        // --- Game State Variables ---
+        let gameState = 'START';
+        let playerObj = { x: CANVAS_WIDTH / 2 - PLAYER_SIZE / 2, y: CANVAS_HEIGHT - PLAYER_SIZE * 1.5, dx: 0 };
+        let obstacles = [];
+        let score = 0;
+        let lastSpawnTime = 0;
+        let obstacleSpeed = INITIAL_OBSTACLE_SPEED;
+        let gameLoopId = null;
+
+        let isGhosting = false; 
+        let ghostTimer = 0;
+        let lastGhostTime = 0; 
+
+        // DOM Elements
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const startScreen = document.getElementById('start-screen');
+        const gameoverScreen = document.getElementById('gameover-screen');
+        const startButton = document.getElementById('startButton');
+        const restartButton = document.getElementById('restartButton');
+        const finalScoreDisplay = document.getElementById('finalScore');
+        
+        // Mobile Controls DOM Elements
+        const mobileControls = document.getElementById('mobile-controls');
+        const moveLeftButton = document.getElementById('moveLeft');
+        const moveRightButton = document.getElementById('moveRight');
+        const dashButton = document.getElementById('dashButton');
+        let lastTime = 0; 
+
+        // --- Game Setup Functions ---
+
+        /**
+         * Hides all screens and shows the canvas for gameplay.
+         */
+        function showGame() {
+            startScreen.classList.add('hidden');
+            gameoverScreen.classList.add('hidden');
+            canvas.classList.remove('hidden');
+            mobileControls.style.display = 'flex'; // Show controls
+            
+            // Ensure the canvas container maintains its size when the canvas is shown
+            const wrapper = document.getElementById('screen-wrapper');
+            wrapper.classList.remove('p-8');
+            wrapper.style.width = `${CANVAS_WIDTH}px`;
+            wrapper.style.height = `${CANVAS_HEIGHT}px`;
+        }
+
+        /**
+         * Hides the canvas and shows the game over screen.
+         */
+        function showGameOver() {
+            // Update high scores before showing the game over screen
+            updateHighScores(score);
+
+            canvas.classList.add('hidden');
+            mobileControls.style.display = 'none'; // Hide controls
+            gameoverScreen.classList.remove('hidden', 'flex-col');
+            gameoverScreen.classList.add('flex');
+            finalScoreDisplay.textContent = `${(score / 1000).toFixed(2)}s`;
+            
+            // Restore wrapper padding and flexible size
+            const wrapper = document.getElementById('screen-wrapper');
+            wrapper.classList.add('p-8');
+            wrapper.style.width = '100%';
+            wrapper.style.height = 'auto';
+        }
+
+        /**
+         * Initializes or resets the game state.
+         */
+        function startGame() {
+            gameState = 'PLAYING';
+            score = 0;
+            obstacles = [];
+            playerObj.x = CANVAS_WIDTH / 2 - PLAYER_SIZE / 2;
+            playerObj.dx = 0;
+            obstacleSpeed = INITIAL_OBSTACLE_SPEED;
+            lastSpawnTime = 0;
+            isGhosting = false;
+            ghostTimer = 0;
+            lastGhostTime = performance.now() - GHOST_COOLDOWN_MS; // Ready to Ghost immediately
+            
+            showGame();
+
+            if (gameLoopId) {
+                cancelAnimationFrame(gameLoopId);
+            }
+            // Initialize lastTime before starting the loop for correct deltaTime calculation
+            lastTime = performance.now(); 
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- Player Logic ---
+
+        // Define common dash logic as a function (renamed to attemptGhosting)
+        function attemptGhosting() {
+            if (gameState !== 'PLAYING') return;
+
+            const currentTime = performance.now();
+            if (currentTime - lastGhostTime >= GHOST_COOLDOWN_MS) {
+                isGhosting = true;
+                ghostTimer = GHOST_DURATION_MS;
+                lastGhostTime = currentTime;
+            }
+        }
+
+        /**
+         * Handles keyboard input for player movement and dash.
+         * @param {KeyboardEvent} e 
+         */
+        function handleKeyDown(e) {
+            if (gameState === 'PLAYING') {
+                if (e.key === 'ArrowLeft' || e.key === 'A' || e.key === 'a') {
+                    playerObj.dx = -PLAYER_SPEED;
+                } else if (e.key === 'ArrowRight' || e.key === 'D' || e.key === 'd') {
+                    playerObj.dx = PLAYER_SPEED;
+                }
+                
+                // GHOST KEY (Spacebar)
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    attemptGhosting();
+                    e.preventDefault(); // Prevent spacebar from scrolling page
+                }
+            }
+        }
+
+        /**
+         * Stops player movement when key is released.
+         * @param {KeyboardEvent} e 
+         */
+        function handleKeyUp(e) {
+            if (gameState === 'PLAYING') {
+                if (e.key === 'ArrowLeft' || e.key === 'A' || e.key === 'a' || e.key === 'ArrowRight' || e.key === 'D' || e.key === 'd') {
+                    playerObj.dx = 0;
+                }
+            }
+        }
+
+        /**
+         * Updates player position based on its speed and prevents it from leaving the canvas.
+         * @param {number} deltaTime Time elapsed since last frame in milliseconds.
+         */
+        function updatePlayer(deltaTime) {
+            
+            // Handle Ghosting state timer 
+            if (isGhosting) {
+                ghostTimer -= deltaTime;
+                if (ghostTimer <= 0) {
+                    isGhosting = false;
+                    ctx.globalAlpha = 1.0; // Ensure full opacity reset
+                }
+            }
+
+            let speed = playerObj.dx; 
+            
+            // Scale movement by deltaTime relative to 60fps (1000/60 = 16.67ms per frame)
+            const frameRatio = deltaTime / 16.67; 
+            playerObj.x += speed * frameRatio; 
+
+            // Keep player within horizontal boundaries
+            if (playerObj.x < 0) {
+                playerObj.x = 0;
+            }
+            if (playerObj.x + PLAYER_SIZE > CANVAS_WIDTH) {
+                playerObj.x = CANVAS_WIDTH - PLAYER_SIZE;
+            }
+        }
+
+        // --- Obstacle Logic ---
+
+        /**
+         * Creates a new falling obstacle at a random x position.
+         */
+        function spawnObstacle() {
+            const minX = 0;
+            const maxX = CANVAS_WIDTH - OBSTACLE_SIZE;
+            const x = Math.random() * (maxX - minX) + minX;
+            obstacles.push({ x: x, y: -OBSTACLE_SIZE, dy: obstacleSpeed });
+        }
+
+        /**
+         * Updates obstacle positions and checks for collision.
+         * @param {number} deltaTime Time elapsed since last frame in milliseconds.
+         * @returns {boolean} True if collision occurred, false otherwise.
+         */
+        function updateObstacles(deltaTime) {
+            let collision = false;
+            // Increase speed slowly over time
+            obstacleSpeed = INITIAL_OBSTACLE_SPEED + (score / 30000); 
+            const frameRatio = deltaTime / 16.67;
+
+            for (let i = 0; i < obstacles.length; i++) {
+                const obs = obstacles[i];
+                obs.dy = obstacleSpeed; // Update speed
+                obs.y += obs.dy * frameRatio;
+
+                // Collision Detection: AABB
+                if (
+                    !isGhosting && // Check collision only if NOT ghosting (invincible)
+                    playerObj.x < obs.x + OBSTACLE_SIZE &&
+                    playerObj.x + PLAYER_SIZE > obs.x &&
+                    playerObj.y < obs.y + OBSTACLE_SIZE &&
+                    playerObj.y + PLAYER_SIZE > obs.y
+                ) {
+                    collision = true;
+                }
+            }
+
+            // Remove obstacles that have left the screen
+            obstacles = obstacles.filter(obs => obs.y < CANVAS_HEIGHT);
+
+            return collision;
+        }
+
+        // --- Drawing Functions ---
+
+        /**
+         * Draws the player (Food Box emoji) and the dash cooldown indicator.
+         */
+        function drawPlayer() {
+            // Player Emoji (Food Box 📦, or Ghost 👻 when ghosting/invincible)
+            ctx.font = `${PLAYER_SIZE}px sans-serif`; 
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            
+            // Ghost emoji for invincibility!
+            const emoji = isGhosting ? '👻' : '📦'; 
+            
+            // Add visual cue for ghosting: temporary reduced opacity and flashing
+            if (isGhosting) {
+                // Flashing effect based on time
+                ctx.globalAlpha = 0.5 + (Math.sin(performance.now() / 50) * 0.2); 
+            } else {
+                ctx.globalAlpha = 1.0;
+            }
+
+            ctx.fillText(emoji, playerObj.x + PLAYER_SIZE / 2, playerObj.y + PLAYER_SIZE / 2);
+            
+            // Reset opacity immediately after drawing player
+            ctx.globalAlpha = 1.0;
+            
+            // Draw Ghosting Cooldown Indicator 
+            const currentTime = performance.now();
+            // Calculate progress, ensuring it never exceeds 1 (100%)
+            const cooldownProgress = Math.min(1, Math.max(0, (currentTime - lastGhostTime) / GHOST_COOLDOWN_MS)); 
+            
+            const barHeight = 6;
+            const fullBarWidth = PLAYER_SIZE;
+            const currentFillWidth = fullBarWidth * cooldownProgress; // Width of the filled bar
+
+            // The bar starts at the player's x position, aligning with the player box
+            const startX = playerObj.x; 
+            const startY = playerObj.y + PLAYER_SIZE + 5;
+
+            // 1. Draw the hollow rectangle showing the full cooldown capacity (the container)
+            ctx.strokeStyle = `rgba(64, 128, 255, 0.5)`; // Secondary FA Blue
+            ctx.lineWidth = 2;
+            ctx.strokeRect(startX, startY, fullBarWidth, barHeight);
+            
+            // 2. Draw the filled progress bar (inside the container)
+            ctx.fillStyle = `rgba(102, 224, 163, 0.9)`; // Primary FA Green/Aqua
+            // Draw the fill starting at startX, with width determined by progress
+            ctx.fillRect(startX, startY, currentFillWidth, barHeight);
+        }
+
+        /**
+         * Draws all obstacles (Warning Emojis).
+         */
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                ctx.font = `${OBSTACLE_SIZE}px sans-serif`;
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                // Draw the Warning/Hazard (Obstacle)
+                ctx.fillText('⚠️', obs.x + OBSTACLE_SIZE / 2, obs.y + OBSTACLE_SIZE / 2);
+            });
+        }
+
+        /**
+         * Draws the current score and speed with mission glow.
+         */
+        function drawScore() {
+            ctx.fillStyle = '#66e0a3'; // Primary FA Green/Aqua
+            ctx.shadowColor = '#66e0a3';
+            ctx.shadowBlur = 8;
+            ctx.font = '24px Inter, sans-serif';
+            ctx.textAlign = 'left';
+            ctx.fillText(`Time: ${(score / 1000).toFixed(2)}s`, 10, 30);
+            ctx.fillText(`Speed: ${obstacleSpeed.toFixed(1)}`, 10, 60);
+            
+            // Ghosting status (renamed from Dash status)
+            const ghostReady = performance.now() - lastGhostTime >= GHOST_COOLDOWN_MS;
+            ctx.fillStyle = ghostReady ? '#4080ff' : '#ef4444'; // Blue if ready, Red if cooling
+            ctx.shadowColor = ghostReady ? '#4080ff' : '#ef4444';
+            ctx.font = '18px Inter, sans-serif';
+            ctx.textAlign = 'right';
+            ctx.fillText(`GHOST: ${ghostReady ? 'READY' : 'COOLDOWN'}`, CANVAS_WIDTH - 10, 30);
+            
+            // Reset shadow
+            ctx.shadowBlur = 0; 
+        }
+        
+        /**
+         * Main drawing function.
+         */
+        function draw() {
+            ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+            drawPlayer();
+            drawObstacles();
+            drawScore();
+        }
+
+        // --- Main Game Loop ---
+
+        function gameLoop(currentTime) {
+            if (gameState !== 'PLAYING') {
+                return;
+            }
+
+            const deltaTime = currentTime - lastTime;
+            lastTime = currentTime;
+
+            // Update Score (in milliseconds)
+            score += deltaTime;
+
+            // Spawning (Speed up spawn rate over time)
+            if (currentTime - lastSpawnTime > SPAWN_INTERVAL - (score / 100)) { 
+                 spawnObstacle();
+                 lastSpawnTime = currentTime;
+            }
+
+            // Update Logic
+            updatePlayer(deltaTime);
+            if (updateObstacles(deltaTime)) {
+                // Collision detected!
+                gameState = 'GAME_OVER';
+                cancelAnimationFrame(gameLoopId);
+                showGameOver();
+                return;
+            }
+
+            // Drawing
+            draw();
+
+            gameLoopId = requestAnimationFrame(gameLoop);
+        }
+
+        // --- Event Listeners and Initialization (Game) ---
+
+        startButton.addEventListener('click', startGame);
+        restartButton.addEventListener('click', startGame);
+
+        // Keyboard listeners for desktop play
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
+
+        // Mobile Button Controls (Reliable for touch devices like iPhone/Safari)
+        
+        // Use common velocity setting functions for both touch and mouse down/up on buttons
+        function startMoving(direction) {
+             if (gameState === 'PLAYING') {
+                playerObj.dx = direction === 'left' ? -PLAYER_SPEED : PLAYER_SPEED;
+            }
+        }
+        
+        function stopMoving() {
+            playerObj.dx = 0;
+        }
+
+        // Left Button - Handles mouse (desktop) and touch (mobile)
+        moveLeftButton.addEventListener('mousedown', () => startMoving('left'));
+        moveLeftButton.addEventListener('touchstart', (e) => { startMoving('left'); e.preventDefault(); });
+        moveLeftButton.addEventListener('mouseup', stopMoving);
+        moveLeftButton.addEventListener('touchend', stopMoving);
+        moveLeftButton.addEventListener('touchcancel', stopMoving);
+
+        // Right Button - Handles mouse (desktop) and touch (mobile)
+        moveRightButton.addEventListener('mousedown', () => startMoving('right'));
+        moveRightButton.addEventListener('touchstart', (e) => { startMoving('right'); e.preventDefault(); });
+        moveRightButton.addEventListener('mouseup', stopMoving);
+        moveRightButton.addEventListener('touchend', stopMoving);
+        moveRightButton.addEventListener('touchcancel', stopMoving);
+
+        // Ghost Button (renamed from Dash Button) - Simple click/tap
+        dashButton.addEventListener('click', attemptGhosting);
+        dashButton.addEventListener('touchstart', (e) => { attemptGhosting(); e.preventDefault(); });
+
+
+    </script>
+</body>
+</html>
