@@ -337,7 +337,7 @@
                     const totalRaised = docSnap.data().amount || 0;
                     moneyRaisedDisplay.textContent = `$${totalRaised.toFixed(2)}`;
                 } else {
-                    const initialTotal = 2.00; // Your friend's initial $2 donation
+                    const initialTotal = 30.00; // Your friend's initial $2 donation
                     try {
                         await setDoc(docRef, { amount: initialTotal }, { merge: false });
                         moneyRaisedDisplay.textContent = `$${initialTotal.toFixed(2)}`;
