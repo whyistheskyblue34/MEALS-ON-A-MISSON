@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -6,6 +7,7 @@
     <title>Meals on a Mission Mini Game</title>
     <!-- Load Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- REMOVED: Tone.js for sound effects -->
     <style>
         /* --- DARK FRUTIGER AERO STYLES --- */
         
@@ -20,10 +22,17 @@
 
         body {
             font-family: 'Inter', sans-serif;
-            /* Deep, dark blue gradient for FA base */
-            background: linear-gradient(135deg, var(--dark-FA-bg) 0%, #1e3353 100%); 
+            
+            /* Background remains the same as the user-approved previous version */
+            background-image: url('huntrix-rumi-mira-zoey-from-kpop-demon-hunters-v0-q9smv22s2m9f1 - Copy.gif'); 
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed; 
+
             min-height: 100vh;
             color: white; 
+            background-color: #0d1a2f; /* Fallback */
         }
 
         /* FA-style Glossy Glow Effect */
@@ -37,7 +46,6 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            /* Ensure container occupies screen height but allows for scroll if content overflows */
             min-height: calc(100vh - 4rem); 
             padding-bottom: 4rem;
         }
@@ -50,10 +58,8 @@
             padding: 2rem;
             /* Complex, glossy shadow effect */
             box-shadow: 
-                /* Outer shadow (glow) */
                 0 0 20px rgba(64, 128, 255, 0.6), /* Blue glow */
                 0 10px 30px rgba(0, 0, 0, 0.5),   /* Base shadow */
-                /* Inner edge highlight for skeuomorphism */
                 inset 0 1px 0 rgba(255, 255, 255, 0.2); 
             border: 2px solid rgba(102, 224, 163, 0.4); /* Primary FA border */
         }
@@ -200,7 +206,8 @@
             <!-- MONEY RAISED BAR (Updated with FA Bar Style) -->
             <div class="p-3 rounded-xl shadow-xl fa-bar flex-1 text-center">
                 <h2 class="text-sm font-semibold text-gray-300">Total Raised:</h2>
-                <p id="moneyRaisedDisplay" class="text-2xl sm:text-3xl font-black mission-glow" style="color: #ffe873; text-shadow: 0 0 10px #ffe873;">$0.00</p>
+                <!-- Initial value will be set by the JavaScript -->
+                <p id="moneyRaisedDisplay" class="text-2xl sm:text-3xl font-black mission-glow" style="color: #ffe873; text-shadow: 0 0 10px #ffe873;">$30.00</p>
             </div>
             
             <!-- NEW HIGH SCORE BUTTON -->
@@ -217,7 +224,6 @@
         <p class="text-lg text-gray-300 mb-6">Avoid the falling blocks!</p>
 
         <!-- Game Screens Wrapper -->
-        <!-- Note: max-w-md ensures the game content is focused and centered on large screens. -->
         <div id="screen-wrapper" class="w-full max-w-sm sm:max-w-md relative">
 
             <!-- Game Canvas -->
@@ -247,10 +253,10 @@
             </div>
 
             <!-- Game Over Screen (Hidden initially) -->
-            <div id="gameover-screen" class="hidden flex-col items-center justify-center text-center">
-                <h2 class="text-4xl font-extrabold text-red-400 mb-4 mission-glow" style="text-shadow: 0 0 10px #ef4444;">Game Over!</h2>
-                <p class="text-xl text-gray-300 mb-2">Your Time Survived:</p>
-                <p id="finalScore" class="text-5xl font-black mb-8 mission-glow" style="color: var(--primary-FA); text-shadow: 0 0 15px var(--primary-FA);">0s</p>
+            <div id="gameover-screen" class="hidden flex-col items-center justify-center text-center p-4">
+                <h2 class="text-3xl sm:text-4xl font-extrabold text-red-400 mb-4 mission-glow" style="text-shadow: 0 0 10px #ef4444;">Game Over!</h2>
+                <p class="text-lg sm:text-xl text-gray-300 mb-2">Your Time Survived:</p>
+                <p id="finalScore" class="text-4xl sm:text-5xl font-black mb-8 mission-glow" style="color: var(--primary-FA); text-shadow: 0 0 15px var(--primary-FA);">0s</p>
                 <button id="restartButton" class="mission-btn-base btn-restart py-3 px-8">
                     Play Again
                 </button>
@@ -259,7 +265,6 @@
         </div>
         
         <!-- Mobile Controls (Displayed below the game wrapper) -->
-        <!-- Increased margin-top to mt-8 for better separation -->
         <div id="mobile-controls" class="w-full max-w-sm sm:max-w-md mt-8 flex justify-between px-2 sm:px-0">
             <button id="moveLeft" class="mission-btn-base btn-move p-4 w-1/4">
                 LEFT
@@ -316,11 +321,16 @@
         let db, auth;
         let userId = null; 
         
-        // Donation Tracking Constant (Kept for the mission aspect)
+        // Donation Tracking Constant 
         const DONATION_DOC_PATH = `/artifacts/${appId}/public/data/donations/total`;
 
         // High Score State (Only tracking the user's personal best)
         let highScoreTime = 0; // Stored in milliseconds (Used locally and synced to Firebase)
+        
+        // Initial donation amount constant
+        const INITIAL_DONATION_AMOUNT = 30.00; 
+
+        // The audio initialization function is removed.
 
         // --- Firebase Logic (Conditional) ---
 
@@ -337,10 +347,9 @@
                     const totalRaised = docSnap.data().amount || 0;
                     moneyRaisedDisplay.textContent = `$${totalRaised.toFixed(2)}`;
                 } else {
-                    const initialTotal = 30.00; // Your friend's initial $2 donation
                     try {
-                        await setDoc(docRef, { amount: initialTotal }, { merge: false });
-                        moneyRaisedDisplay.textContent = `$${initialTotal.toFixed(2)}`;
+                        await setDoc(docRef, { amount: INITIAL_DONATION_AMOUNT }, { merge: false });
+                        moneyRaisedDisplay.textContent = `$${INITIAL_DONATION_AMOUNT.toFixed(2)}`;
                     } catch (e) {
                          console.error("Error setting initial donation doc:", e);
                     }
@@ -356,7 +365,6 @@
         function initializeHighScore() {
             if (!isFirebaseAvailable || !userId) {
                 console.warn("User ID not available or Firebase skipped for high score tracking.");
-                // If running locally, attempt to load from localStorage (non-persistent for Canvas)
                 const localScore = localStorage.getItem('localHighScore');
                 if (localScore) {
                     highScoreTime = parseInt(localScore, 10);
@@ -364,7 +372,6 @@
                 return;
             }
 
-            // High Score Listener (Private Data)
             const USER_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
             const userDocRef = doc(db, USER_HIGH_SCORE_DOC);
 
@@ -390,20 +397,17 @@
             highScoreTime = newScoreMs;
             const newScoreSeconds = newScoreMs / 1000;
 
-            // Handle Local/Non-Firebase environment
             if (!isFirebaseAvailable) {
                 localStorage.setItem('localHighScore', newScoreMs.toString());
                 console.log(`New Local High Score: ${newScoreSeconds.toFixed(2)}s`);
                 return;
             }
             
-            // --- FIREBASE LOGIC STARTS HERE ---
-            if (!userId) return; // Guard for Firebase logic
+            if (!userId) return; 
 
             const USER_HIGH_SCORE_DOC = `/artifacts/${appId}/users/${userId}/gameData/highScore`;
             const userDocRef = doc(db, USER_HIGH_SCORE_DOC);
             try {
-                // This setDoc will trigger the onSnapshot listener, updating the local variable
                 await setDoc(userDocRef, { time: newScoreMs }, { merge: false });
                 console.log(`New High Score saved to Firebase: ${newScoreSeconds.toFixed(2)}s`);
             } catch (e) {
@@ -421,24 +425,25 @@
                     db = getFirestore(appInstance);
                     auth = getAuth(appInstance);
 
-                    if (typeof __initial_auth_token !== 'undefined' && __initial_auth_token) {
-                        await signInWithCustomToken(auth, __initial_auth_token);
+                    const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : null;
+
+                    if (initialAuthToken) {
+                        await signInWithCustomToken(auth, initialAuthToken);
                     } else {
                         await signInAnonymously(auth);
                     }
                     userId = auth.currentUser?.uid || crypto.randomUUID();
-                    initializeDonationTracking(); // Start listening for changes once authenticated
-                    initializeHighScore(); // Start listening for high score
+                    initializeDonationTracking(); 
+                    initializeHighScore(); 
 
                 } catch (error) {
                     console.error("Firebase Auth or Initialization failed:", error);
-                    // Fallback UI in case initialization fails even with config
-                    moneyRaisedDisplay.textContent = `$2.00`;
+                    moneyRaisedDisplay.textContent = `$${INITIAL_DONATION_AMOUNT.toFixed(2)}`;
                 }
             } else {
                 console.warn("Firebase configuration not detected. Running in local debug mode (no persistence).");
-                moneyRaisedDisplay.textContent = `$2.00`;
-                initializeHighScore(); // Load local storage score
+                moneyRaisedDisplay.textContent = `$${INITIAL_DONATION_AMOUNT.toFixed(2)}`;
+                initializeHighScore(); 
             }
         }
 
@@ -464,7 +469,6 @@
         highScoreButton.addEventListener('click', showHighScoreModal);
         closeModalButton.addEventListener('click', hideHighScoreModal);
         scoreModal.addEventListener('click', (e) => {
-            // Close modal if user clicks on the overlay, not the content
             if (e.target === scoreModal) {
                 hideHighScoreModal();
             }
@@ -526,7 +530,6 @@
             canvas.classList.remove('hidden');
             mobileControls.style.display = 'flex'; // Show controls
             
-            // Ensure the canvas container maintains its size when the canvas is shown
             const wrapper = document.getElementById('screen-wrapper');
             wrapper.classList.remove('p-8');
             wrapper.style.width = `${CANVAS_WIDTH}px`;
@@ -535,9 +538,9 @@
 
         /**
          * Hides the canvas and shows the game over screen.
+         * FIX: Clears inline width on wrapper to allow Tailwind's max-w classes to control size.
          */
         function showGameOver() {
-            // Update high scores before showing the game over screen
             updateHighScore(score);
 
             canvas.classList.add('hidden');
@@ -546,10 +549,9 @@
             gameoverScreen.classList.add('flex');
             finalScoreDisplay.textContent = `${(score / 1000).toFixed(2)}s`;
             
-            // Restore wrapper padding and flexible size
             const wrapper = document.getElementById('screen-wrapper');
             wrapper.classList.add('p-8');
-            wrapper.style.width = '100%';
+            wrapper.style.width = ''; // Clear inline width for responsive fallback
             wrapper.style.height = 'auto';
         }
 
@@ -573,14 +575,32 @@
             if (gameLoopId) {
                 cancelAnimationFrame(gameLoopId);
             }
-            // Initialize lastTime before starting the loop for correct deltaTime calculation
             lastTime = performance.now(); 
             gameLoopId = requestAnimationFrame(gameLoop);
         }
 
         // --- Player Logic ---
 
-        // Define common dash logic as a function (renamed to attemptGhosting)
+        /**
+         * Starts the player movement.
+         * @param {string} direction 'left' or 'right'
+         */
+        function startMoving(direction) {
+             if (gameState === 'PLAYING') {
+                playerObj.dx = direction === 'left' ? -PLAYER_SPEED : PLAYER_SPEED;
+            }
+        }
+        
+        /**
+         * Stops the player movement.
+         */
+        function stopMoving() {
+            playerObj.dx = 0;
+        }
+
+        /**
+         * Attempts to activate Ghost Mode.
+         */
         function attemptGhosting() {
             if (gameState !== 'PLAYING') return;
 
@@ -589,38 +609,6 @@
                 isGhosting = true;
                 ghostTimer = GHOST_DURATION_MS;
                 lastGhostTime = currentTime;
-            }
-        }
-
-        /**
-         * Handles keyboard input for player movement and dash.
-         * @param {KeyboardEvent} e 
-         */
-        function handleKeyDown(e) {
-            if (gameState === 'PLAYING') {
-                if (e.key === 'ArrowLeft' || e.key === 'A' || e.key === 'a') {
-                    playerObj.dx = -PLAYER_SPEED;
-                } else if (e.key === 'ArrowRight' || e.key === 'D' || e.key === 'd') {
-                    playerObj.dx = PLAYER_SPEED;
-                }
-                
-                // GHOST KEY (Spacebar)
-                if (e.key === ' ' || e.key === 'Spacebar') {
-                    attemptGhosting();
-                    e.preventDefault(); // Prevent spacebar from scrolling page
-                }
-            }
-        }
-
-        /**
-         * Stops player movement when key is released.
-         * @param {KeyboardEvent} e 
-         */
-        function handleKeyUp(e) {
-            if (gameState === 'PLAYING') {
-                if (e.key === 'ArrowLeft' || e.key === 'A' || e.key === 'a' || e.key === 'ArrowRight' || e.key === 'D' || e.key === 'd') {
-                    playerObj.dx = 0;
-                }
             }
         }
 
@@ -635,13 +623,11 @@
                 ghostTimer -= deltaTime;
                 if (ghostTimer <= 0) {
                     isGhosting = false;
-                    ctx.globalAlpha = 1.0; // Ensure full opacity reset
+                    ctx.globalAlpha = 1.0; 
                 }
             }
 
             let speed = playerObj.dx; 
-            
-            // Scale movement by deltaTime relative to 60fps (1000/60 = 16.67ms per frame)
             const frameRatio = deltaTime / 16.67; 
             playerObj.x += speed * frameRatio; 
 
@@ -673,18 +659,17 @@
          */
         function updateObstacles(deltaTime) {
             let collision = false;
-            // Increase speed slowly over time
             obstacleSpeed = INITIAL_OBSTACLE_SPEED + (score / 30000); 
             const frameRatio = deltaTime / 16.67;
 
             for (let i = 0; i < obstacles.length; i++) {
                 const obs = obstacles[i];
-                obs.dy = obstacleSpeed; // Update speed
+                obs.dy = obstacleSpeed; 
                 obs.y += obs.dy * frameRatio;
 
                 // Collision Detection: AABB
                 if (
-                    !isGhosting && // Check collision only if NOT ghosting (invincible)
+                    !isGhosting && 
                     playerObj.x < obs.x + OBSTACLE_SIZE &&
                     playerObj.x + PLAYER_SIZE > obs.x &&
                     playerObj.y < obs.y + OBSTACLE_SIZE &&
@@ -706,17 +691,15 @@
          * Draws the player (Food Box emoji) and the dash cooldown indicator.
          */
         function drawPlayer() {
-            // Player Emoji (Food Box 📦, or Ghost 👻 when ghosting/invincible)
             ctx.font = `${PLAYER_SIZE}px sans-serif`; 
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             
-            // Ghost emoji for invincibility!
+            // Player Emoji (Food Box 📦, or Ghost 👻 when ghosting/invincible)
             const emoji = isGhosting ? '👻' : '📦'; 
             
             // Add visual cue for ghosting: temporary reduced opacity and flashing
             if (isGhosting) {
-                // Flashing effect based on time
                 ctx.globalAlpha = 0.5 + (Math.sin(performance.now() / 50) * 0.2); 
             } else {
                 ctx.globalAlpha = 1.0;
@@ -729,14 +712,12 @@
             
             // Draw Ghosting Cooldown Indicator 
             const currentTime = performance.now();
-            // Calculate progress, ensuring it never exceeds 1 (100%)
             const cooldownProgress = Math.min(1, Math.max(0, (currentTime - lastGhostTime) / GHOST_COOLDOWN_MS)); 
             
             const barHeight = 6;
             const fullBarWidth = PLAYER_SIZE;
-            const currentFillWidth = fullBarWidth * cooldownProgress; // Width of the filled bar
+            const currentFillWidth = fullBarWidth * cooldownProgress; 
 
-            // The bar starts at the player's x position, aligning with the player box
             const startX = playerObj.x; 
             const startY = playerObj.y + PLAYER_SIZE + 5;
 
@@ -747,7 +728,6 @@
             
             // 2. Draw the filled progress bar (inside the container)
             ctx.fillStyle = `rgba(102, 224, 163, 0.9)`; // Primary FA Green/Aqua
-            // Draw the fill starting at startX, with width determined by progress
             ctx.fillRect(startX, startY, currentFillWidth, barHeight);
         }
 
@@ -756,11 +736,12 @@
          */
         function drawObstacles() {
             obstacles.forEach(obs => {
-                ctx.font = `${OBSTACLE_SIZE}px sans-serif`;
+                ctx.font = `${OBSTACLE_SIZE}px sans-serif`; 
                 ctx.textAlign = 'center';
                 ctx.textBaseline = 'middle';
-                // Draw the Warning/Hazard (Obstacle)
-                ctx.fillText('⚠️', obs.x + OBSTACLE_SIZE / 2, obs.y + OBSTACLE_SIZE / 2);
+                
+                // Obstacle Emoji (Caution Sign ⚠️)
+                ctx.fillText('⚠️', obs.x + OBSTACLE_SIZE / 2, obs.y + OBSTACLE_SIZE / 2 + 2); 
             });
         }
 
@@ -768,7 +749,7 @@
          * Draws the current score and speed with mission glow.
          */
         function drawScore() {
-            ctx.fillStyle = '#66e0a3'; // Primary FA Green/Aqua
+            ctx.fillStyle = '#66e0a3'; 
             ctx.shadowColor = '#66e0a3';
             ctx.shadowBlur = 8;
             ctx.font = '24px Inter, sans-serif';
@@ -776,15 +757,13 @@
             ctx.fillText(`Time: ${(score / 1000).toFixed(2)}s`, 10, 30);
             ctx.fillText(`Speed: ${obstacleSpeed.toFixed(1)}`, 10, 60);
             
-            // Ghosting status (renamed from Dash status)
             const ghostReady = performance.now() - lastGhostTime >= GHOST_COOLDOWN_MS;
-            ctx.fillStyle = ghostReady ? '#4080ff' : '#ef4444'; // Blue if ready, Red if cooling
+            ctx.fillStyle = ghostReady ? '#4080ff' : '#ef4444'; 
             ctx.shadowColor = ghostReady ? '#4080ff' : '#ef4444';
             ctx.font = '18px Inter, sans-serif';
             ctx.textAlign = 'right';
             ctx.fillText(`GHOST: ${ghostReady ? 'READY' : 'COOLDOWN'}`, CANVAS_WIDTH - 10, 30);
             
-            // Reset shadow
             ctx.shadowBlur = 0; 
         }
         
@@ -811,10 +790,8 @@
             // Update Score (in milliseconds)
             score += deltaTime;
 
-            // Spawning (Speed up spawn rate over time, but ensure a minimum gap)
             let adjustedInterval = SPAWN_INTERVAL - (score / 100); 
             
-            // Check against the minimum interval to prevent screen flooding
             if (currentTime - lastSpawnTime > Math.max(MIN_SPAWN_INTERVAL, adjustedInterval)) { 
                  spawnObstacle();
                  lastSpawnTime = currentTime;
@@ -842,22 +819,36 @@
         restartButton.addEventListener('click', startGame);
 
         // Keyboard listeners for desktop play
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
-
-        // Mobile Button Controls (Reliable for touch devices like iPhone/Safari)
         
-        // Use common velocity setting functions for both touch and mouse down/up on buttons
-        function startMoving(direction) {
-             if (gameState === 'PLAYING') {
-                playerObj.dx = direction === 'left' ? -PLAYER_SPEED : PLAYER_SPEED;
+        function handleKeyDown(e) {
+            if (gameState === 'PLAYING') {
+                if (e.key === 'ArrowLeft' || e.key === 'A' || e.key === 'a') {
+                    startMoving('left');
+                } else if (e.key === 'ArrowRight' || e.key === 'D' || e.key === 'd') {
+                    startMoving('right');
+                }
+                
+                // GHOST KEY (Spacebar)
+                if (e.key === ' ' || e.key === 'Spacebar') {
+                    attemptGhosting();
+                    e.preventDefault(); 
+                }
+            }
+        }
+
+        function handleKeyUp(e) {
+            if (gameState === 'PLAYING') {
+                if (e.key === 'ArrowLeft' || e.key === 'A' || e.key === 'a' || e.key === 'ArrowRight' || e.key === 'D' || e.key === 'd') {
+                    stopMoving();
+                }
             }
         }
         
-        function stopMoving() {
-            playerObj.dx = 0;
-        }
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
 
+        // Mobile Button Controls (Attached to movement functions)
+        
         // Left Button - Handles mouse (desktop) and touch (mobile)
         moveLeftButton.addEventListener('mousedown', () => startMoving('left'));
         moveLeftButton.addEventListener('touchstart', (e) => { startMoving('left'); e.preventDefault(); });
@@ -872,13 +863,11 @@
         moveRightButton.addEventListener('touchend', stopMoving);
         moveRightButton.addEventListener('touchcancel', stopMoving);
 
-        // Ghost Button (renamed from Dash Button) - Simple click/tap
+        // Ghost Button - Simple click/tap
         dashButton.addEventListener('click', attemptGhosting);
         dashButton.addEventListener('touchstart', (e) => { attemptGhosting(); e.preventDefault(); });
-
 
     </script>
 </body>
 </html>
-
 
